@@ -1,85 +1,72 @@
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from utils import llm, ChatPromptTemplate, StrOutputParser, AgentState
 from typing import Optional, Dict, List
 
-from state import AgentState
-
-load_dotenv()
-llm = ChatGroq(model_name="llama3-8b-8192", temperature=0)
-
+# This is the primary writing agent. It takes the research dossier and a brief
+# and uses the LLM to generate a full press release.
 def writers_group_node(state: AgentState) -> AgentState:
-    """H1: Creates press releases based on briefs."""
-    print("---WRITERS (H1): Creating press releases...---")
+    """H1: Writers generate a press release."""
+    print("---WRITERS GROUP (H1): Generating press release...---")
     dossier = state.get("dossier", "")
+    writing_briefs = state.get("writing_briefs", {})
+    
+    press_release_brief = writing_briefs.get("press_release_writer", "")
+    
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a professional press release writer. Based on the following dossier, write a compelling press release. The release should be newsworthy and formatted correctly."),
-        ("human", f"Dossier: {dossier}")
+        ("system", "You are an expert PR writer. Using the following dossier and brief, write a compelling and professional press release."),
+        ("human", f"Dossier: {dossier}\n\nBrief: {press_release_brief}")
     ])
+    
     chain = prompt | llm | StrOutputParser()
-    press_release = chain.invoke({"dossier": dossier})
-    return {"press_releases": [press_release], "status": "press_release_written"}
+    press_release = chain.invoke({"dossier": dossier, "press_release_brief": press_release_brief})
+    
+    return {"press_releases": [press_release]}
 
-def journalist_research_identify_and_save(state: AgentState) -> AgentState:
-    """I1, I2: Identifies journalists and saves a comprehensive list."""
-    print("---JOURNALIST RESEARCH (I1, I2): Identifying and saving journalists...---")
-    dossier = state.get("dossier", "")
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a media researcher. Based on the product and information in the dossier, identify 10 relevant journalists and their media outlets. Return a list of names and their outlets, e.g., 'Name, Outlet'."),
-        ("human", f"Dossier: {dossier}")
-    ])
-    chain = prompt | llm | StrOutputParser()
-    journalists_str = chain.invoke({"dossier": dossier})
-    journalists_list = [j.strip() for j in journalists_str.split('\n')]
-    media_list_excel = f"Comprehensive Media List:\n{journalists_str}"
-    return {"journalists_list": journalists_list, "media_list_excel": media_list_excel, "status": "journalists_identified"}
-
-def email_writers_node(state: AgentState) -> AgentState:
-    """J1: Creates personalized emails for the target journalists."""
-    print("---EMAIL WRITERS (J1): Creating personalized emails...---")
-    journalists = state.get("selected_journalists", [])
-    press_releases = state.get("press_releases", [])
-    personalized_emails = []
-    for journalist in journalists:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", f"You are an expert email marketer. Write a highly personalized, compelling email pitch to the journalist named {journalist}. The email should briefly summarize the attached press release and explain why this story is relevant to their specific media outlet. Be concise and persuasive."),
-            ("human", f"Press Release:\n{press_releases[0]}")
-        ])
-        chain = prompt | llm | StrOutputParser()
-        email_content = chain.invoke({})
-        personalized_emails.append(email_content)
-    return {"personalized_emails": personalized_emails, "status": "emails_written"}
+# --- PLACEHOLDER BRIEF WRITERS (RUNS IN PARALLEL) ---
+# These are placeholder functions that would, in a more complex setup, use the LLM
+# to generate specific creative briefs. For this project, they simply return a
+# dictionary with a placeholder string. This demonstrates how a graph can run
+# multiple tasks at the same time.
 
 def creative_brief_writer_node(state: AgentState) -> AgentState:
-    """M1: Creates a creative brief."""
-    print("---BRIEF WRITER (M1): Creating creative brief...---")
-    # This is a simplified function. A real LLM call would generate this.
-    brief = "Creative Brief: Develop a campaign concept around the theme 'Sip Sustainably'."
-    # We are removing the status update to avoid concurrency issues.
-    return {"writing_briefs": {"creative_brief": brief}}
+    """H2: Creates a creative brief."""
+    print("---WRITERS GROUP (H2): Creating creative brief...---")
+    # This now returns a unique key so it doesn't conflict with other brief writers
+    return {"creative_brief": "Creative brief content here."}
 
 def design_brief_writer_node(state: AgentState) -> AgentState:
-    """M2: Creates a design brief."""
-    print("---BRIEF WRITER (M2): Creating design brief...---")
-    # Simplified function.
-    brief = "Design Brief: Create modern, eco-friendly visuals for social media and a landing page."
-    # We are removing the status update to avoid concurrency issues.
-    return {"writing_briefs": {"design_brief": brief}}
+    """H3: Creates a design brief."""
+    print("---WRITERS GROUP (H3): Creating design brief...---")
+    # This now returns a unique key so it doesn't conflict with other brief writers
+    return {"design_brief": "Design brief content here."}
 
 def social_brief_writer_node(state: AgentState) -> AgentState:
-    """M3: Creates a social brief."""
-    print("---BRIEF WRITER (MWRITERS): Creating social brief...---")
-    # Simplified function.
-    brief = "Social Brief: Plan a content calendar focusing on brand ambassadors and sustainability."
-    # We are removing the status update to avoid concurrency issues.
-    return {"writing_briefs": {"social_brief": brief}}
+    """H4: Creates a social media brief."""
+    print("---WRITERS GROUP (H4): Creating social media brief...---")
+    # This now returns a unique key so it doesn't conflict with other brief writers
+    return {"social_brief": "Social media brief content here."}
 
 def research_analytics_brief_writer_node(state: AgentState) -> AgentState:
-    """M4: Creates a research & analytics brief."""
-    print("---BRIEF WRITER (M4): Creating research & analytics brief...---")
-    # Simplified function.
-    brief = "Research & Analytics Brief: Set up tracking for campaign performance and sentiment analysis."
-    # We are removing the status update to avoid concurrency issues.
-    return {"writing_briefs": {"analytics_brief": brief}}
+    """H5: Creates a research and analytics brief."""
+    print("---WRITERS GROUP (H5): Creating research brief...---")
+    # This now returns a unique key so it doesn't conflict with other brief writers
+    return {"research_analytics_brief": "Research brief content here."}
+    
+# This agent takes the final list of journalists and uses the LLM to write a
+# personalized email for each one.
+def email_writers_node(state: AgentState) -> AgentState:
+    """J2: Writers generate personalized emails."""
+    print("---EMAIL WRITERS (J2): Generating personalized emails...---")
+    journalists = state.get("journalists_list", [])
+    dossier = state.get("dossier", "")
+    emails = []
+
+    for journalist in journalists:
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", f"You are a PR assistant. Write a personalized outreach email to {journalist['name']} at {journalist['outlet']} based on the following dossier. Keep it concise and professional."),
+            ("human", f"Dossier: {dossier}")
+        ])
+        chain = prompt | llm | StrOutputParser()
+        email_content = chain.invoke({"dossier": dossier})
+        emails.append(f"To: {journalist['contact']}\n\n{email_content}")
+    
+    return {"personalized_emails": emails}

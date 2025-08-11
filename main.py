@@ -1,86 +1,58 @@
-from langgraph.graph import StateGraph, END
+# main.py
+from dotenv import load_dotenv
+import os
 
-# Import the shared state
-from state import AgentState
+from utils import AgentState
+from graphs.main_graph import create_main_graph
 
-# Import individual agents that are not part of a sub-graph
-from agents.orchestrator import (
-    orchestrator_create_plan_node,
-    orchestrator_collect_final_assets,
+# Load environment variables from .env file
+load_dotenv()
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+print("DEBUG: GROQ_API_KEY loaded.")
+
+if not os.getenv("GROQ_API_KEY"):
+    raise ValueError("GROQ_API_KEY not found in environment variables.")
+
+# Create the final graph
+app = create_main_graph()
+
+# Initial state for the campaign
+initial_state = AgentState(
+    brief="We are a coffee company that wants to launch a new line of sustainable, ethically sourced coffee beans. Our campaign should highlight our commitment to environmental responsibility and fair trade practices. We need a full PR campaign, including a press release, journalist outreach, and a crisis plan."
 )
-from agents.crisis_manager import crisis_manager_node
 
-# Import the sub-graph creation functions
-from graphs.research_graph import create_research_graph
-from graphs.writing_graph import create_writing_graph
-
-# 1. Initialize the main StateGraph
-workflow = StateGraph(AgentState)
-
-# 2. Add individual nodes first (e.g., entry/exit points, or single agents)
-workflow.add_node("orchestrator_create_plan", orchestrator_create_plan_node)
-workflow.add_node("crisis_manager", crisis_manager_node)
-workflow.add_node("orchestrator_collect_assets", orchestrator_collect_final_assets)
-
-# 3. Add our sub-graphs as nodes to the main graph
-# Note: LangGraph compiles the sub-graphs first, then adds them as nodes.
-research_pipeline = create_research_graph()
-writing_pipeline = create_writing_graph()
-
-workflow.add_node("research_pipeline_node", research_pipeline)
-workflow.add_node("writing_pipeline_node", writing_pipeline)
-
-# 4. Set the entry point
-workflow.set_entry_point("orchestrator_create_plan")
-
-# 5. Define the edges (connections) of the main graph
-workflow.add_edge("orchestrator_create_plan", "research_pipeline_node")
-workflow.add_edge("research_pipeline_node", "writing_pipeline_node")
-workflow.add_edge("writing_pipeline_node", "crisis_manager")
-workflow.add_edge("crisis_manager", "orchestrator_collect_assets")
-
-# Final end point
-workflow.add_edge("orchestrator_collect_assets", END)
-
-# 6. Compile the main workflow into a runnable LangGraph app.
-app = workflow.compile()
-
-# --- RUNNING THE APPLICATION ---
-if __name__ == "__main__":
-    # Define the initial state with the user's brief.
-    initial_brief = "I need a press campaign to announce our new AI-powered coffee maker that is eco-friendly. It should highlight sustainability and cutting-edge technology."
-    initial_state = {
-        "brief": initial_brief, 
-        "research_tasks": [], 
-        "press_releases": [], 
-        "journalists_list": [], 
-        "personalized_emails": [],
-        "quality_control_issues": [],
-    }
-
-    # Invoke the graph with the initial state.
+# Run the graph
+try:
     final_state = app.invoke(initial_state)
-
-    # Print the final output.
-    print("\n\n--- CAMPAIGN COMPLETE! FINAL ASSETS ---")
-    print(f"Final Status: {final_state['status']}")
     
-    final_assets = final_state.get('final_assets', {})
+    print("\n\n--- CAMPAIGN COMPLETE! FINAL ASSETS ---")
+    print(f"Final Status: {final_state.get('status', 'Unknown')}\n")
+
+    final_assets = final_state.get("final_assets", {})
+
     print("\n--- Press Releases ---")
     for pr in final_assets.get("press_releases", []):
         print(pr)
-    
+
     print("\n--- Target Journalists ---")
     for j in final_assets.get("journalists_list", []):
         print(j)
-    
+
     print("\n--- Personalized Emails ---")
     for e in final_assets.get("personalized_emails", []):
         print(e)
-        
+
     print("\n--- Crisis Plan ---")
-    print(final_assets.get("crisis_plan", "No crisis plan found."))
-    
+    print(final_assets.get("crisis_plan", "No crisis plan generated."))
+
     print("\n--- Writing Briefs ---")
-    for name, brief in final_assets.get("writing_briefs", {}).items():
-        print(f"Brief for {name}:\n{brief}")
+    for brief_key, brief_content in final_assets.get("writing_briefs", {}).items():
+        print(f"**{brief_key.replace('_', ' ').title()}**")
+        print(brief_content)
+        print("-" * 20)
+
+except Exception as e:
+    print(f"An error occurred during the graph execution: {e}")
+    # You can inspect the final state even in case of an error
+    print("\n--- Current State at Failure ---")
+    print(final_state)

@@ -1,56 +1,45 @@
-from langgraph.graph import StateGraph
-from langgraph.graph import END
-
-# Import the shared state
-from state import AgentState
-
-# Import the agents from our new modular files
+from utils import StateGraph, END
 from agents.research import (
-    head_research_node,
-    head_research_collect_dossier,
-    research_sub_agents_node
+    head_of_research_node, # Corrected: Replaces the old function name
+    brand_research_node,
+    media_scout_node,
+    social_intel_node,
+    head_of_research_compile_dossier
 )
 from agents.strategist import strategist_interrogate_dossier
-from agents.orchestrator import orchestrator_brief_crisis_manager
+from agents.quality_control import quality_control_dossier_node
+from state import AgentState
 
-def create_research_graph() -> StateGraph:
-    """
-    Creates and returns a sub-graph for the research and dossier-building pipeline.
-    This graph starts from the brief and ends with a complete dossier.
-    """
-    # Initialize the sub-graph
-    research_pipeline = StateGraph(AgentState)
+def create_research_graph():
+    research_workflow = StateGraph(AgentState)
 
-    # Add the nodes (agents)
-    research_pipeline.add_node("head_research", head_research_node)
-    research_pipeline.add_node("research_team", research_sub_agents_node)
-    research_pipeline.add_node("head_research_collect_dossier", head_research_collect_dossier)
-    research_pipeline.add_node("strategist_interrogate_dossier", strategist_interrogate_dossier)
-    research_pipeline.add_node("brief_crisis_manager", orchestrator_brief_crisis_manager)
-    
-    # Define the entry and exit points
-    research_pipeline.set_entry_point("head_research")
-    
-    # Define the edges (connections) for the sub-graph
-    research_pipeline.add_edge("head_research", "research_team")
-    research_pipeline.add_edge("research_team", "head_research_collect_dossier")
-    research_pipeline.add_edge("head_research_collect_dossier", "strategist_interrogate_dossier")
-    research_pipeline.add_edge("strategist_interrogate_dossier", END)
-    
-    return research_pipeline.compile()
+    # Define the nodes for the research graph
+    research_workflow.add_node("head_of_research", head_of_research_node)
+    research_workflow.add_node("brand_research", brand_research_node)
+    research_workflow.add_node("media_scout", media_scout_node)
+    research_workflow.add_node("social_intel", social_intel_node)
+    research_workflow.add_node("compile_dossier", head_of_research_compile_dossier)
+    research_workflow.add_node("strategist", strategist_interrogate_dossier)
+    research_workflow.add_node("quality_control", quality_control_dossier_node)
 
-if __name__ == "__main__":
-    # This is for testing the sub-graph in isolation.
-    # We will not run this in the final main.py.
-    research_pipeline_graph = create_research_graph()
+    # Set up the entry point and edges
+    research_workflow.set_entry_point("head_of_research")
+
+    # Connect the research tasks in parallel
+    research_workflow.add_edge("head_of_research", "brand_research")
+    research_workflow.add_edge("head_of_research", "media_scout")
+    research_workflow.add_edge("head_of_research", "social_intel")
+
+    # The research results all flow into the dossier compilation node
+    research_workflow.add_edge("brand_research", "compile_dossier")
+    research_workflow.add_edge("media_scout", "compile_dossier")
+    research_workflow.add_edge("social_intel", "compile_dossier")
     
-    initial_state = {
-        "brief": "I need a press campaign to announce our new AI-powered eco-friendly coffee maker.",
-        "research_tasks": [], "research_results": {}, "dossier": ""
-    }
+    # After compiling, the dossier is interrogated by the strategist, then checked by QC
+    research_workflow.add_edge("compile_dossier", "strategist")
+    research_workflow.add_edge("strategist", "quality_control")
+
+    # The research graph ends after quality control
+    research_workflow.add_edge("quality_control", END)
     
-    final_state = research_pipeline_graph.invoke(initial_state)
-    
-    print("\n--- Research Pipeline Complete ---")
-    print(f"Final Status: {final_state['status']}")
-    print(f"Final Dossier:\n{final_state['dossier'][:200]}...") # Print a snippet
+    return research_workflow.compile()

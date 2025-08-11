@@ -1,23 +1,23 @@
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from utils import llm, ChatPromptTemplate, StrOutputParser, AgentState
 from typing import Optional, Dict, List
 
-from state import AgentState
-
-load_dotenv()
-llm = ChatGroq(model_name="llama3-8b-8192", temperature=0)
-
 def crisis_manager_node(state: AgentState) -> AgentState:
-    """K1: Conducts scenario planning."""
+    """K1: Conducts scenario planning based on the client brief."""
     print("---CRISIS MANAGER (K1): Conducting scenario planning...---")
-    dossier = state.get("dossier", "")
+    
+    brief = state.get("brief", "")
+    
+    # Define a detailed prompt to guide the LLM in generating a crisis plan.
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a crisis management expert. Based on the campaign brief and dossier, identify potential risks and create a basic crisis communication plan. The plan should include possible negative scenarios and a prepared response."),
-        ("human", f"Dossier: {dossier}")
+        ("system", "You are an expert Crisis Manager. Your task is to develop a comprehensive crisis plan for a new product launch. Analyze the client brief for potential risks and vulnerabilities related to the campaign's core message. Your plan should include: a) a list of potential crisis scenarios, b) a recommended communication strategy for each scenario, and c) a list of key stakeholders to engage with."),
+        ("human", f"Client Brief: {brief}")
     ])
+    
+    # Create an LLM chain to process the request.
     chain = prompt | llm | StrOutputParser()
-    crisis_plan = chain.invoke({"dossier": dossier})
-    return {"crisis_plan": crisis_plan, "status": "crisis_plan_created"}
+    
+    # Invoke the chain to get the crisis plan.
+    crisis_plan = chain.invoke({"brief": brief})
+    
+    # Return the new state with the generated crisis plan.
+    return {"crisis_plan": crisis_plan}

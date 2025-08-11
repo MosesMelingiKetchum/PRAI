@@ -1,76 +1,66 @@
-import os
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from utils import llm, ChatPromptTemplate, StrOutputParser, AgentState
 from typing import Optional, Dict, List
 
-from state import AgentState
-
-load_dotenv()
-groq_key = os.getenv("GROQ_API_KEY")
-print(f"DEBUG: GROQ_API_KEY loaded: {groq_key}")
-llm = ChatGroq(model_name="llama3-8b-8192", temperature=0)
-
+# --- Agent 1: The Orchestrator (Orchestrator_Create_Plan) ---
 def orchestrator_create_plan_node(state: AgentState) -> AgentState:
-    """B1: Interrogates the brief and creates an initial plan."""
+    """B1: The Orchestrator creates an initial campaign plan."""
     print("---ORCHESTRATOR (B1): Creating initial plan...---")
     brief = state.get("brief", "")
+    
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert PR campaign orchestrator. Based on the user's brief, create a detailed, step-by-step plan for a PR campaign. The plan should include research, writing, and distribution phases."),
-        ("human", f"Brief: {brief}")
+        ("system", "You are the head of a PR firm. Your task is to review the client brief and create an initial campaign plan. Do not write any campaign materials yet."),
+        ("human", "Brief: {brief}")
     ])
+    
     chain = prompt | llm | StrOutputParser()
     plan = chain.invoke({"brief": brief})
-    return {"plan": plan, "status": "plan_created"}
+    
+    return {"plan": plan}
 
+# --- Agent 2: The Orchestrator (Orchestrator_Review_Dossier_and_Brief) ---
 def orchestrator_review_dossier_and_brief(state: AgentState) -> AgentState:
-    """B2: Reviews dossier and builds writing briefs."""
+    """B2: The Orchestrator reviews the research dossier and builds writing briefs."""
     print("---ORCHESTRATOR (B2): Reviewing dossier and building writing briefs...---")
     dossier = state.get("dossier", "")
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are the orchestrator. Based on the following research dossier, create a set of writing briefs for different agents. The briefs should be specific and actionable. Create briefs for 'press_release_writer' and 'email_writer'."),
-        ("human", f"Dossier: {dossier}")
-    ])
-    chain = prompt | llm | StrOutputParser()
-    writing_briefs_str = chain.invoke({"dossier": dossier})
-    writing_briefs = {
-        "press_release_writer": "Create an impactful press release based on the dossier.",
-        "email_writer": "Create personalized emails for journalists."
-    }
-    # We are removing the status update here to avoid the concurrency issue.
-    return {"writing_briefs": writing_briefs}
+    insights = state.get("insights", "")
+    
+    # Placeholder for an LLM call to build the briefs.
+    # For now, we use a simple placeholder to represent the action.
+    press_release_brief = f"Based on these insights:\n\n{insights}\n\nWrite a compelling press release highlighting the new sustainable coffee line. The dossier provides the key details. Focus on the environmental and fair trade aspects."
+    
+    return {"writing_briefs": {"press_release_writer": press_release_brief}}
 
-def orchestrator_brief_crisis_manager(state: AgentState) -> AgentState:
-    """B3: Briefs the Crisis Manager."""
-    print("---ORCHESTRATOR (B3): Briefing Crisis Manager...---")
-    return {"status": "crisis_manager_briefed"}
-
-def orchestrator_assign_agents(state: AgentState) -> AgentState:
-    """B4: Assigns agents to fill gaps (e.g., after QC issues)."""
-    print("---ORCHESTRATOR (B4): Re-assigning agents to fix issues...---")
-    return {"status": "rework_needed"}
-
-def orchestrator_write_prompts_for_brief_writers(state: AgentState) -> AgentState:
-    """B5: Write prompts for brief writer agents."""
-    print("---ORCHESTRATOR (B5): Writing prompts for brief writers...---")
-    dossier = state.get("dossier", "")
-    brief_writers_prompts = {
-        "creative_brief": f"Based on the dossier, write a creative brief. Dossier: {dossier}",
-        "design_brief": f"Based on the dossier, write a design brief. Dossier: {dossier}",
-        "social_brief": f"Based on the dossier, write a social media brief. Dossier: {dossier}",
-    }
-    return {"writing_briefs": brief_writers_prompts, "status": "brief_prompts_created"}
-
+# --- Agent 3: The Orchestrator (Orchestrator_Collect_Final_Assets) ---
 def orchestrator_collect_final_assets(state: AgentState) -> AgentState:
-    """B6: Collects final assets for delivery."""
+    """B6: The Orchestrator collects all final assets."""
     print("---ORCHESTRATOR (B6): Collecting final assets...---")
-    final_assets = {
-        "press_releases": state.get("press_releases", []),
-        "personalized_emails": state.get("personalized_emails", []),
-        "journalists_list": state.get("selected_journalists", []),
-        "media_list": state.get("media_list_excel", ""),
-        "crisis_plan": state.get("crisis_plan", ""),
-        "writing_briefs": state.get("writing_briefs", {})
+
+    press_releases = state.get("press_releases", [])
+    journalists_list = state.get("journalists_list", [])
+    personalized_emails = state.get("personalized_emails", [])
+    crisis_plan = state.get("crisis_plan", "")
+
+    # We now collect briefs differently to avoid the ValueError.
+    writing_briefs = {}
+    
+    # The briefs are now stored as individual keys in the state.
+    # We collect them and place them into a single dictionary.
+    if state.get("creative_brief"):
+        writing_briefs["creative"] = state.get("creative_brief")
+    if state.get("design_brief"):
+        writing_briefs["design"] = state.get("design_brief")
+    if state.get("social_brief"):
+        writing_briefs["social"] = state.get("social_brief")
+    if state.get("research_analytics_brief"):
+        writing_briefs["research_analytics"] = state.get("research_analytics_brief")
+    
+    # Placeholder for a more complex LLM call to assemble the final report.
+    final_report = {
+        "press_releases": press_releases,
+        "journalists_list": journalists_list,
+        "personalized_emails": personalized_emails,
+        "writing_briefs": writing_briefs,
+        "crisis_plan": crisis_plan
     }
-    return {"final_assets": final_assets, "status": "campaign_ready"}
+    
+    return {"final_assets": final_report, "status": "campaign_ready"}
