@@ -28,27 +28,23 @@ def writers_group_node(state: AgentState) -> AgentState:
 # multiple tasks at the same time.
 
 def creative_brief_writer_node(state: AgentState) -> AgentState:
-    """H2: Creates a creative brief."""
+    """H2: Creates a creative brief for visual assets."""
     print("---WRITERS GROUP (H2): Creating creative brief...---")
-    # This now returns a unique key so it doesn't conflict with other brief writers
     return {"creative_brief": "Creative brief content here."}
 
 def design_brief_writer_node(state: AgentState) -> AgentState:
-    """H3: Creates a design brief."""
+    """H3: Creates a design brief for branding materials."""
     print("---WRITERS GROUP (H3): Creating design brief...---")
-    # This now returns a unique key so it doesn't conflict with other brief writers
     return {"design_brief": "Design brief content here."}
 
 def social_brief_writer_node(state: AgentState) -> AgentState:
     """H4: Creates a social media brief."""
     print("---WRITERS GROUP (H4): Creating social media brief...---")
-    # This now returns a unique key so it doesn't conflict with other brief writers
     return {"social_brief": "Social media brief content here."}
 
 def research_analytics_brief_writer_node(state: AgentState) -> AgentState:
     """H5: Creates a research and analytics brief."""
     print("---WRITERS GROUP (H5): Creating research brief...---")
-    # This now returns a unique key so it doesn't conflict with other brief writers
     return {"research_analytics_brief": "Research brief content here."}
     
 # This agent takes the final list of journalists and uses the LLM to write a
@@ -62,11 +58,17 @@ def email_writers_node(state: AgentState) -> AgentState:
 
     for journalist in journalists:
         prompt = ChatPromptTemplate.from_messages([
-            ("system", f"You are a PR assistant. Write a personalized outreach email to {journalist['name']} at {journalist['outlet']} based on the following dossier. Keep it concise and professional."),
-            ("human", f"Dossier: {dossier}")
+            ("system", 
+             f"You are a PR assistant. Write a highly personalized outreach email to a journalist. "
+             f"Use a professional but friendly tone. The email should introduce our new line of sustainable coffee, "
+             f"explain why their specific outlet ({journalist.get('outlet', 'their outlet')}) is a good fit, "
+             f"and invite them to learn more. Use the provided dossier for key talking points."
+             f"Keep it concise and professional. Do not add placeholders like '[Your Name]' or '[Brand Name]'. "
+             f"Instead, act as if you are the one sending the email on behalf of the company."),
+            ("human", f"Journalist: {journalist.get('name', 'N/A')}, Outlet: {journalist.get('outlet', 'N/A')}, Contact: {journalist.get('contact', 'N/A')}\n\nDossier: {dossier}")
         ])
         chain = prompt | llm | StrOutputParser()
         email_content = chain.invoke({"dossier": dossier})
-        emails.append(f"To: {journalist['contact']}\n\n{email_content}")
+        emails.append(f"To: {journalist.get('contact', 'N/A')}\nSubject: Story idea for {journalist.get('outlet', 'your outlet')}: A new way to brew ethically\n\n{email_content}")
     
     return {"personalized_emails": emails}

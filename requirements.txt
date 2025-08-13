@@ -2,4 +2,6 @@ langchain
 langgraph
 langchain-openai
 python-dotenv
-
+ddgs
+requests
+beautifulsoup4
