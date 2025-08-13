@@ -38,8 +38,9 @@ def create_research_graph():
     # After compiling, the dossier is interrogated by the strategist, then checked by QC
     research_workflow.add_edge("compile_dossier", "strategist")
     research_workflow.add_edge("strategist", "quality_control")
-
-    # The research graph ends after quality control
+    
+    # When QC passes, the research pipeline is complete
     research_workflow.add_edge("quality_control", END)
     
+    # The fix is to return the compiled graph, not the raw workflow
     return research_workflow.compile()

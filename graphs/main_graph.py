@@ -34,8 +34,10 @@ def create_main_graph():
     # Add all the nodes to the workflow. The sub-graphs ('research_pipeline' and 'writing_pipeline')
     # are treated as single, self-contained nodes.
     workflow.add_node("orchestrator_create_plan", orchestrator_create_plan_node)
+    # The fix is to call .compile() on the sub-graphs here
     workflow.add_node("research_pipeline", create_research_graph())
     workflow.add_node("orchestrator_review", orchestrator_review_dossier_and_brief)
+    # The fix is to call .compile() on the sub-graphs here
     workflow.add_node("writing_pipeline", create_writing_graph())
     workflow.add_node("crisis_manager", crisis_manager_node)
     workflow.add_node("orchestrator_collect_final_assets", orchestrator_collect_final_assets)
@@ -63,5 +65,4 @@ def create_main_graph():
     workflow.add_edge("crisis_manager", "orchestrator_collect_final_assets")
     workflow.add_edge("orchestrator_collect_final_assets", END)
     
-    # Compile the final graph, making it ready to be executed.
     return workflow.compile()

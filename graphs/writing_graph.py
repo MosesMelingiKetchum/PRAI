@@ -9,7 +9,7 @@ from agents.writers import (
 )
 from agents.strategist import strategist_determine_briefs, strategist_select_journalists
 from agents.quality_control import quality_control_press_releases_node, quality_control_emails_node
-from agents.journalist_research import journalist_research_identify_and_save # Updated import
+from agents.journalist_research import journalist_research_identify_and_save
 from state import AgentState
 
 def create_writing_graph():
@@ -57,4 +57,5 @@ def create_writing_graph():
     writing_workflow.add_edge("social_writer", END)
     writing_workflow.add_edge("research_writer", END)
 
+    # The fix is to return the compiled graph, not the raw workflow
     return writing_workflow.compile()

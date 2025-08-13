@@ -8,14 +8,14 @@ def orchestrator_create_plan_node(state: AgentState) -> AgentState:
     brief = state.get("brief", "")
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are the head of a PR firm. Your task is to review the client brief and create an initial campaign plan. Do not write any campaign materials yet."),
+        ("system", "You are the head of a PR firm. Your task is to review the client brief and create an initial campaign plan. Do not write any campaign materials yet. The plan should be a bulleted list of high-level steps."),
         ("human", "Brief: {brief}")
     ])
     
     chain = prompt | llm | StrOutputParser()
     plan = chain.invoke({"brief": brief})
     
-    return {"plan": plan}
+    return {"plan": plan, "status": "plan_created"}
 
 # --- Agent 2: The Orchestrator (Orchestrator_Review_Dossier_and_Brief) ---
 def orchestrator_review_dossier_and_brief(state: AgentState) -> AgentState:
@@ -24,13 +24,19 @@ def orchestrator_review_dossier_and_brief(state: AgentState) -> AgentState:
     dossier = state.get("dossier", "")
     insights = state.get("insights", "")
     
-    # Placeholder for an LLM call to build the briefs.
-    # For now, we use a simple placeholder to represent the action.
-    press_release_brief = f"Based on these insights:\n\n{insights}\n\nWrite a compelling press release highlighting the new sustainable coffee line. The dossier provides the key details. Focus on the environmental and fair trade aspects."
+    # Updated the prompt to be more direct and remove conversational filler.
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are the orchestrator of a PR campaign. Based on the following dossier and strategic insights, write a comprehensive brief for the press release writer. The brief should outline the key message, target audience, and required tone. Your response must ONLY be the brief itself, with no conversational filler or preambles."),
+        ("human", f"Dossier: {dossier}\n\nStrategic Insights: {insights}")
+    ])
     
-    return {"writing_briefs": {"press_release_writer": press_release_brief}}
+    chain = prompt | llm | StrOutputParser()
+    press_release_brief = chain.invoke({"dossier": dossier, "insights": insights})
+    
+    # We are now also updating the status to indicate the brief has been created.
+    return {"writing_briefs": {"press_release_writer": press_release_brief}, "status": "dossier_reviewed"}
 
-# --- Agent 3: The Orchestrator (Orchestrator_Collect_Final_Assets) ---
+# --- Agent 6: The Orchestrator (Orchestrator_Collect_Final_Assets) ---
 def orchestrator_collect_final_assets(state: AgentState) -> AgentState:
     """B6: The Orchestrator collects all final assets."""
     print("---ORCHESTRATOR (B6): Collecting final assets...---")
@@ -62,5 +68,5 @@ def orchestrator_collect_final_assets(state: AgentState) -> AgentState:
         "writing_briefs": writing_briefs,
         "crisis_plan": crisis_plan
     }
-    
+
     return {"final_assets": final_report, "status": "campaign_ready"}
